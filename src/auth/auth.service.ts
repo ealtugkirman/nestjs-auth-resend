@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  [x: string]: any;
   constructor(private prisma: PrismaService) {}
 
   // Sign up new user
@@ -73,5 +74,13 @@ export class AuthService {
         resetTokenExpiry: null,
       },
     });
+  }
+
+  async login(email: string, password: string) {
+    const user = await this.validateUser(email, password);
+    if (!user) {
+      throw new BadRequestException('Invalid credentials');
+    }
+    return user;
   }
 }

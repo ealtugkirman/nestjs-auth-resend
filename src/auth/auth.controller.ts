@@ -54,6 +54,11 @@ export class AuthController {
     return { message: 'Reset link (if email is found) has been sent!' };
   }
 
+  @Post('register')
+  async register(@Body() body: { email: string; password: string }) {
+    return this.authService.register(body.email, body.password);
+  }
+
   @Post('reset-password')
   async resetPassword(
     @Body('token') token: string,
@@ -69,5 +74,14 @@ export class AuthController {
     }
 
     return { message: 'Password updated successfully' };
+  }
+
+  @Post('login')
+  async login(@Body() body: { email: string; password: string }) {
+    if (!body.email || !body.password) {
+      throw new BadRequestException('Email and password are required');
+    }
+
+    return this.authService.login(body.email, body.password);
   }
 }
