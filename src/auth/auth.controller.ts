@@ -3,12 +3,17 @@ import {
   Post,
   Body,
   BadRequestException,
+  Res,
   // ...
 } from '@nestjs/common';
 // ...
 import { ResendService } from 'src/common/mail/resend/resend.service';
 import { randomBytes } from 'crypto';
 import { AuthService } from './auth.service';
+import { Response } from 'express';
+import { Injectable } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 
 @Controller('auth')
 export class AuthController {
@@ -37,7 +42,7 @@ export class AuthController {
       };
     }
 
-    const resetLink = `https://your-frontend-domain.com/reset-password?token=${token}`;
+    const resetLink = `https://localhost:3000/reset-password?token=${token}`;
 
     // Send email
     const htmlContent = `
@@ -77,11 +82,41 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    if (!body.email || !body.password) {
-      throw new BadRequestException('Email and password are required');
-    }
+  async login(
+    @Body() body: { email: string; password: string },
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { access_token } = await this.authService.login(body);
 
-    return this.authService.login(body.email, body.password);
+    // HTTP-only cookie oluştur
+    response.cookie('jwt', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 gün
+    });
+
+    return { message: 'Giriş başarılı' };
+  }
+}
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor() {
+    super({
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request) => {
+          return request?.cookies?.jwt;
+        },
+      ]),
+      secretOrKey: process.env.JWT_SECRET,
+    });
+  }
+
+  async validate(payload: any) {
+    return {
+      id: payload.sub,
+      email: payload.email,
+    };
   }
 }
